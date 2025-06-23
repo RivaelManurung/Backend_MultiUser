@@ -1,27 +1,33 @@
 const express = require("express");
-const { createProject, getProjects, updateProject, deleteProject, addMember } = require("../controllers/projectController");
+const authMiddleware = require("../middleware/authMiddleware");
+const {
+  createProject,
+  getProjects,
+  getProjectById, // Add this
+  updateProject,
+  deleteProject,
+  inviteMemberByEmail,
+  searchUsers,
+  getTaskAnalytics,
+  exportProject,
+  validateCreateProject,
+  validateUpdateProject,
+  validateInviteMember,
+  validateSearchUsers,
+} = require("../controllers/projectController");
 
 const router = express.Router();
 
-router.use((req, res, next) => {
-  const token = req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(401).json({ error: "Unauthorized" });
+router.use(authMiddleware);
 
-  try {
-    const jwt = require("jsonwebtoken");
-    const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.userId = decoded.id;
-    next();
-  } catch {
-    res.status(401).json({ error: "Invalid token" });
-  }
-});
-
-router.post("/", createProject);
-router.get("/", getProjects);
-router.put("/:id", updateProject);
-router.delete("/:id", deleteProject);
-router.post("/:id/members", addMember);
+router.post("/projects", validateCreateProject, createProject);
+router.get("/projects", getProjects);
+router.get("/projects/:id", getProjectById); // Add this
+router.put("/projects/:id", validateUpdateProject, updateProject);
+router.delete("/projects/:id", deleteProject);
+router.post("/projects/:id/invite", validateInviteMember, inviteMemberByEmail);
+router.get("/projects/search-users", validateSearchUsers, searchUsers);
+router.get("/projects/:id/analytics", getTaskAnalytics);
+router.get("/projects/:id/export", exportProject);
 
 module.exports = router;
