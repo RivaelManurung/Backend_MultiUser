@@ -7,11 +7,24 @@ const expressListEndpoints = require("express-list-endpoints");
 
 const app = express();
 const server = http.createServer(app);
+
+// Allowed origins → Tambahkan URL Vercel
+const allowedOrigins = [
+  "http://localhost:3000", // local dev Next.js
+  "https://frontend-multi-user.vercel.app" // production Vercel
+];
+
 const io = new Server(server, {
-  cors: { origin: "http://localhost:3000" },
+  cors: { origin: allowedOrigins },
 });
 
-app.use(cors({ origin: "http://localhost:3000" }));
+// Perbaikan CORS di Express → pakai array allowedOrigins
+app.use(cors({
+  origin: allowedOrigins,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  credentials: true, // jika pakai cookies/token
+}));
+
 app.use(express.json());
 app.use(
   rateLimit({
@@ -39,11 +52,7 @@ try {
 }
 
 app.post("/api/auth/login", authController.validateLogin, authController.login);
-app.post(
-  "/api/auth/register",
-  registerController.validateRegister,
-  registerController.register
-);
+app.post("/api/auth/register", registerController.validateRegister, registerController.register);
 app.use("/api", projectRoutes);
 app.use("/api", taskRoutes);
 
