@@ -5,10 +5,6 @@ const { Server } = require("socket.io");
 const http = require("http");
 const expressListEndpoints = require("express-list-endpoints");
 
-const authController = require("./controllers/authController");
-const registerController = require("./controllers/registerController");
-const projectRoutes = require("./routes/projects"); // Add this
-
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -24,27 +20,46 @@ app.use(
   })
 );
 
+// Middleware to attach io to req for controllers
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
 // Routes
+let authController, registerController, projectRoutes, taskRoutes;
+try {
+  authController = require("./controllers/authController");
+  registerController = require("./controllers/registerController");
+  projectRoutes = require("./routes/projects");
+  taskRoutes = require("./routes/tasks");
+} catch (error) {
+  console.error("Error loading controllers/routes:", error);
+  process.exit(1);
+}
+
 app.post("/api/auth/login", authController.validateLogin, authController.login);
-app.post("/api/auth/register", registerController.validateRegister, registerController.register);
-app.use("/api", projectRoutes); // Mount project routes
+app.post(
+  "/api/auth/register",
+  registerController.validateRegister,
+  registerController.register
+);
+app.use("/api", projectRoutes);
+app.use("/api", taskRoutes);
 
-// Socket.io
-io.on("connection", (socket) => {
-  const { projectId } = socket.handshake.query;
-  socket.join(projectId);
+// Debug logging for all requests
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
 
-  socket.on("taskUpdate", (task) => {
-    socket.to(projectId).emit("taskUpdated", task);
-  });
-
-  socket.on("taskCreated", (task) => {
-    socket.to(projectId).emit("taskCreated", task);
-  });
+// Handle 404
+app.use((req, res) => {
+  res.status(404).json({ error: "Not found" });
 });
 
 // Show routes
-console.log(expressListEndpoints(app));
+console.log("Registered routes:", expressListEndpoints(app));
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
