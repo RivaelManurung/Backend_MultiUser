@@ -11,19 +11,26 @@ const server = http.createServer(app);
 // Allowed origins → Tambahkan URL Vercel
 const allowedOrigins = [
   "http://localhost:3000", // local dev Next.js
-  "https://frontend-multi-user.vercel.app" // production Vercel
+  "https://frontend-multi-user.vercel.app", // production Vercel
 ];
 
 const io = new Server(server, {
   cors: { origin: allowedOrigins },
 });
 
-// Perbaikan CORS di Express → pakai array allowedOrigins
-app.use(cors({
-  origin: allowedOrigins,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  credentials: true, // jika pakai cookies/token
-}));
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true,
+  })
+);
 
 app.use(express.json());
 app.use(
@@ -52,7 +59,11 @@ try {
 }
 
 app.post("/api/auth/login", authController.validateLogin, authController.login);
-app.post("/api/auth/register", registerController.validateRegister, registerController.register);
+app.post(
+  "/api/auth/register",
+  registerController.validateRegister,
+  registerController.register
+);
 app.use("/api", projectRoutes);
 app.use("/api", taskRoutes);
 
