@@ -8,19 +8,14 @@ const expressListEndpoints = require("express-list-endpoints");
 const app = express();
 const server = http.createServer(app);
 
-// Allowed origins → Tambahkan URL Vercel
 const allowedOrigins = [
-  "http://localhost:3000", // local dev Next.js
-  "https://frontend-multi-user.vercel.app", // production Vercel
+  "http://localhost:3000",
+  "https://frontend-multi-user.vercel.app",
 ];
-
-const io = new Server(server, {
-  cors: { origin: allowedOrigins },
-});
 
 app.use(
   cors({
-    origin: function (origin, callback) {
+    origin: (origin, callback) => {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -28,9 +23,13 @@ app.use(
       }
     },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"], // Explicitly allow headers used by your frontend
     credentials: true,
   })
 );
+
+// Move this before any routes to ensure CORS headers are applied to all responses
+app.options("*", cors()); // Handle preflight requests for all routes
 
 app.use(express.json());
 app.use(
@@ -83,3 +82,7 @@ console.log("Registered routes:", expressListEndpoints(app));
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+const io = new Server(server, {
+  cors: { origin: allowedOrigins },
+});
