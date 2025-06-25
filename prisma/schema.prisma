@@ -37,7 +37,7 @@ model Project {
 }
 
 model Task {
-  id          String    @id @default(uuid())
+  id          String    @id @default(uuid())  
   title       String
   description String?
   status      String    @default("todo")

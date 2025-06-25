@@ -1,60 +1,42 @@
-require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const rateLimit = require("express-rate-limit");
 const { Server } = require("socket.io");
 const http = require("http");
-const expressListEndpoints = require("express-list-endpoints");
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: {
-    origin: [process.env.CLIENT_URL, process.env.CLIENT_URL_PROD],
-    credentials: true,
-  },
+  cors: { origin: "http://localhost:3000" },
 });
 
-// Rate limit
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-});
-app.use(limiter);
+app.use(cors({ origin: "http://localhost:3000" }));
 app.use(express.json());
-
-// Dynamic CORS middleware
-const allowedOrigins = [process.env.CLIENT_URL, process.env.CLIENT_URL_PROD];
 app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin) return callback(null, true); // allow mobile/curl
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error("Not allowed by CORS"));
-    },
-    credentials: true,
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
   })
 );
 
-// Attach io to req
+// Middleware to attach io to req for controllers
 app.use((req, res, next) => {
   req.io = io;
   next();
 });
 
-// Import routes
+// Routes
 let authController, registerController, projectRoutes, taskRoutes;
 try {
   authController = require("./controllers/authController");
   registerController = require("./controllers/registerController");
   projectRoutes = require("./routes/projects");
   taskRoutes = require("./routes/tasks");
-} catch (err) {
-  console.error("Error loading routes/controllers:", err);
+} catch (error) {
+  console.error("Error loading controllers/routes:", error);
   process.exit(1);
 }
 
-// Define routes
 app.post("/api/auth/login", authController.validateLogin, authController.login);
 app.post(
   "/api/auth/register",
@@ -64,19 +46,16 @@ app.post(
 app.use("/api", projectRoutes);
 app.use("/api", taskRoutes);
 
-// Logging requests
+// Debug logging for all requests
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
 
-// 404 handler
+// Handle 404
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
 });
-
-// List endpoints for debugging
-console.log("Registered routes:", expressListEndpoints(app));
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
